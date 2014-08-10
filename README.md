@@ -34,7 +34,8 @@ int	main(void) {
   do_math(&val);
   return result;
 }
-```,
+```
+,
 
 `python minifier.py test.c` will output the following result:
 
