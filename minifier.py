@@ -1,8 +1,8 @@
 import sys
 import re
 
-OPS = [ '+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';']
-SPECIAL_OPS = [ '+', '*', '+=', '*=', '(', ')']
+OPS = ['+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';']
+SPECIAL_OPS = ['+', '*', '+=', '*=', '(', ')']
 
 
 def remove_everything_between(subs1, subs2, line):
@@ -74,4 +74,4 @@ with open(sys.argv[1]) as f:
     lines = remove_multiline_comments(lines)
     multi_spaces = re.compile(r'[  ]+ *')
     lines = map(lambda string: multi_spaces.sub(' ', string), lines)
-    print ''.join(lines)
+    print(''.join(lines))
