@@ -105,8 +105,7 @@ def main():
         with open(source_file) as f:
             if args.names is True:
                 print("File {}:".format(source_file))
-            contents = f.read()
-            lines = contents.split(newline)
+            lines = f.readlines()
             if args.keep_newline is False:
                 # Keep preprocessor lines (starting with #)
                 lines = map(lambda x: x.replace(newline, '') if not x.startswith('#') else x, lines)
@@ -123,6 +122,8 @@ def main():
             minified = ''.join(lines)
             print(minified)
             if args.stats is True:
+                f.seek(0)
+                contents = f.read()
                 orig_size = len(contents)
                 mini_size = len(minified)
                 delta = orig_size - mini_size
