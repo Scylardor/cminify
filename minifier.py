@@ -7,7 +7,7 @@
 import argparse
 import sys
 import re
-
+import os  # SEEK_END etc.
 
 OPS = ['+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';']
 SPECIAL_OPS = ['+', '*', '+=', '*=', '(', ')']
@@ -119,7 +119,7 @@ def main():
                 # Keep preprocessor lines (starting with #)
                 lines = map(lambda x: x.replace(newline, '') if not x.startswith('#') else x, lines)
             lines = map(lambda x: x.replace('\t', ' '), lines)
-            # Go through the ops list and remove on every line space on each side of the op
+            # Go through the ops list and remove on every line space on each side of the op
             for op in OPS:
                 lines = map(minify_operator(op), lines)
             lines = trim(lines)
@@ -132,9 +132,8 @@ def main():
             minified = ''.join(lines)
             print(minified)
             if args.stats is True:
-                f.seek(0)
-                contents = f.read()
-                orig_size = len(contents)
+                # After "f.readlines", the file pointer is at file's end so tell() will return current file size.
+                orig_size = f.tell()
                 mini_size = len(minified)
                 delta = orig_size - mini_size
                 print("Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
