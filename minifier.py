@@ -140,4 +140,5 @@ def main():
                       .format(orig_size, mini_size, delta, (float(delta) / float(orig_size)) * 100.0))
 
 
-main()
+if __name__ == "__main__":
+    main()
