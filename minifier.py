@@ -10,17 +10,17 @@ import re
 import os  # SEEK_END etc.
 
 # Ops: ops that may be spaced out in the code but we can trim the whitespace before and after
-# special ops are the same but for ops that may be mistaken for regex control characters so they are escaped
 # Spaced ops are operators that we need to append with one trailing space because of their syntax (e.g. keywords).
+# NB: theses ops are the SUPPORTED ones and these lists may not be complete as per the Standard
 OPS = [
     '+', '-', '*', '/', '%', '++', '--',
     '+=', '-=', '*=', '/=', '%=', '=', '==', '!=',
     '&&', '||', '!', '&', '|', '^', '<<', '>>',
     '<', '>', '<=', '>=', '<<=', '>>=', '&=', '|=', '^=', ',',
-    '(', ')', '{', '}', ';','else'
+    '(', ')', '{', '}', ';', 'else'
 ]
 SPACED_OPS = ['else']
-
+UNARY_OPS= ["+", "-", "&", "!", "*"]
 
 def remove_everything_between(subs1, subs2, line):
     regex = re.compile(subs1 + r'.*' + subs2)
@@ -110,6 +110,29 @@ def fix_spaced_ops(minified_txt):
     return minified_txt
 
 
+def fix_unary_operators(lines):
+    """Ops processing can have eliminated necessary space when using unary ops
+    e.g. "#define ABC -1" becomes "#define ABC-1", because the unary '-' is being
+    mistaken for a binary '-', so the space has been trimmed.
+    We can fix this kind of thing here, but it pretty much highlights the limits of such
+    a parser..."""
+    regex_unary_ops = '[{}]'.format(''.join(UNARY_OPS))
+    regex_unary_ops = re.escape(regex_unary_ops)
+    # Use capture groups to separate, e.g. in "#define MACROVALUE", "#define MACRO" from "VALUE"
+    # pattern will detect problems like "#define FLUSH-2"
+    # Format braces here -----------v
+    pattern = "^(#[a-z]+ +[\w\d]+)([{}][\w\d]+)$".format(regex_unary_ops)
+    # Simply add one more space between macro name and value
+    repl = r'\1' + " " + r'\2'
+    # Process each preprocessor line and modify it inplace as we need to keep order
+    for (idx, line) in enumerate(lines):
+        if line.startswith('#'):
+            for op in UNARY_OPS:
+                line = re.sub(pattern, repl, line)
+            lines[idx] = line
+    return lines
+
+
 def minify_source_file(args, filename):
     with open(filename) as f:
         if args.names is True:
@@ -133,6 +156,9 @@ def minify_source_file(args, filename):
         # Finally convert all remaining multispaces to a single space
         multi_spaces = re.compile(r'[  ]+ *')
         lines = map(lambda string: multi_spaces.sub(' ', string), lines)
+        # Ops processing can have eliminated necessary space when using unary ops
+        # e.g. "#define ABC -1" becomes "#define ABC-1", so we can fix it here
+        lines = fix_unary_operators(lines)
         minified = ''.join(lines)
         # There is no syntactic requirement of an operator being spaced from a '{' in C so
         # if we added unnecessary space when processing spaced ops, we can fix it here
