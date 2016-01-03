@@ -1,3 +1,4 @@
+#!/usr/bin/env python2.7
 #     C Minify Copyright (C) 2014 Alexandre Baron
 #     This program comes with ABSOLUTELY NO WARRANTY; for details read LICENSE.
 #     This is free software, and you are welcome to redistribute it
@@ -65,10 +66,13 @@ def remove_inline_comments(lines):
 
 
 def trim(lines):
-    return map(lambda x: x.strip(" \t"), lines)
+    """Removes all leading and trailing whitespace characters for all lines"""
+    return map(lambda x: x.strip(), lines)
 
 
 def minify_operator(op):
+    """Returns a function applying a regex to strip away spaces on each side of an operator
+    Makes a special escape for operators that could be mistaken for regex control characters."""
     to_compile = r' *'
     if op in SPECIAL_OPS:
         to_compile += "\\"
@@ -115,6 +119,7 @@ def main():
                 # Keep preprocessor lines (starting with #)
                 lines = map(lambda x: x.replace(newline, '') if not x.startswith('#') else x, lines)
             lines = map(lambda x: x.replace('\t', ' '), lines)
+            # Go through the ops list and remove on every line space on each side of the op
             for op in OPS:
                 lines = map(minify_operator(op), lines)
             lines = trim(lines)
