@@ -9,10 +9,10 @@ import sys
 import re
 import os  # SEEK_END etc.
 
-# Ops: ops that may be spaced out in the code but we can trim the whitespace
-# special ops are the same but for ops that may be mistaken for regex control characters so they are espaced
-# Spaced ops are ops that are defined in the C language to be delimited by spaces (keywords most of the time)
-OPS = ['+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';']
+# Ops: ops that may be spaced out in the code but we can trim the whitespace before and after
+# special ops are the same but for ops that may be mistaken for regex control characters so they are escaped
+# Spaced ops are operators that we need to append with one trailing space because of their syntax (e.g. keywords).
+OPS = ['+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';','else']
 SPECIAL_OPS = ['+', '*', '+=', '*=', '(', ')']
 SPACED_OPS = ['else']
 
@@ -69,20 +69,75 @@ def remove_inline_comments(lines):
     return map(lambda x: remove_everything_past('//', x), lines)
 
 
-def trim(lines):
-    """Removes all leading and trailing whitespace characters for all lines"""
-    return map(lambda x: x.strip(), lines)
-
-
 def minify_operator(op):
     """Returns a function applying a regex to strip away spaces on each side of an operator
     Makes a special escape for operators that could be mistaken for regex control characters."""
-    to_compile = r' *'
+    to_compile = " *"
     if op in SPECIAL_OPS:
         to_compile += "\\"
-    to_compile += op + r" *"
+    to_compile += op
+    to_compile += " *"
     regex = re.compile(to_compile)
-    return lambda string: regex.sub(op, string)
+    repl = op
+    if op in SPACED_OPS:
+        repl += " "
+    return lambda string: regex.sub(repl, string)
+
+
+def show_stats(source_file, minified_text):
+    # After "f.readlines", the file pointer is at file's end so tell() will return current file size.
+    orig_size = source_file.tell()
+    mini_size = len(minified_text)
+    delta = orig_size - mini_size
+    print(
+        "Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
+        .format(orig_size, mini_size, delta, (float(delta) / float(orig_size)) * 100.0)
+    )
+
+
+def fix_spaced_ops(minified_txt):
+    """This will walk the spaced ops list and search the text for all "[OP] {" sequences occurrences
+    and replace them by "[OP]{" since there is no operator in the C syntax for which the spacing
+    between the op and the '{' is mandatory.
+    We do this because to manage spaced ops that may or may not be used with braces (e.g. "else"),
+    we may have added unnecessary spaces (e.g. because the brace was on next line),
+    so we can fix it here."""
+    for op in SPACED_OPS:
+        pattern = "{} {{".format(op)  # {{ for literal braces
+        repl = "{}{{".format(op)
+        minified_txt = re.sub(pattern, repl, minified_txt)
+    return minified_txt
+
+
+def minify_source_file(args, filename):
+    with open(filename) as f:
+        if args.names is True:
+            print("File {}:".format(source_file))
+        lines = f.readlines()
+        if args.keep_newline is False:
+            # Keep preprocessor lines (starting with #)
+            lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
+        lines = map(lambda x: x.replace('\t', ' '), lines)
+        # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
+        lines = map(lambda x: x.strip(), lines)
+        # for each operator: remove space on each side of the op, on every line.
+        # Escape ops that could be regex control characters.
+        for op in OPS:
+            lines = map(minify_operator(op), lines)
+        if args.keep_inline is False:
+            lines = remove_inline_comments(lines)
+        if args.keep_multiline is False:
+            lines = remove_multiline_comments(lines)
+        # Finally convert all remaining multispaces to a single space
+        multi_spaces = re.compile(r'[  ]+ *')
+        lines = map(lambda string: multi_spaces.sub(' ', string), lines)
+        minified = ''.join(lines)
+        # There is no syntactic requirement of an operator being spaced from a '{' in C so
+        # if we added unnecessary space when processing spaced ops, we can fix it here
+        minified = fix_spaced_ops(minified)
+        print(minified)
+        if args.stats is True:
+            show_stats(f, minified)
 
 
 def get_args():
@@ -111,51 +166,8 @@ def get_args():
     return args
 
 
-def show_stats(source_file, minified_text):
-    # After "f.readlines", the file pointer is at file's end so tell() will return current file size.
-    orig_size = source_file.tell()
-    mini_size = len(minified_text)
-    delta = orig_size - mini_size
-    print(
-        "Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
-        .format(orig_size, mini_size, delta, (float(delta) / float(orig_size)) * 100.0)
-    )
-
-
-def minify_source_file(args, filename):
-    newline = args.crlf
-    with open(filename) as f:
-        if args.names is True:
-            print("File {}:".format(source_file))
-        lines = f.readlines()
-        if args.keep_newline is False:
-            # Keep preprocessor lines (starting with #)
-            lines = map(lambda x: x.replace(newline, '') if not x.startswith('#') else x, lines)
-        lines = map(lambda x: x.replace('\t', ' '), lines)
-        # for each operator: remove space on each side of the op, on every line.
-        # Escape ops that could be regex control characters.
-        for op in OPS:
-            lines = map(minify_operator(op), lines)
-        # If it's a spaced op, do the contrary: ensure it is spaced out before and after.
-        for op in SPACED_OPS:
-            lines = map(space_operator(op), lines)
-        lines = trim(lines)  # erase leading and trailing whitespace
-        if args.keep_inline is False:
-            lines = remove_inline_comments(lines)
-        if args.keep_multiline is False:
-            lines = remove_multiline_comments(lines)
-        # Finally convert all remaining multispaces to single spaces
-        multi_spaces = re.compile(r'[  ]+ *')
-        lines = map(lambda string: multi_spaces.sub(' ', string), lines)
-        minified = ''.join(lines)
-        print(minified)
-        if args.stats is True:
-            show_stats(f, minified)
-
-
 def main():
     args = get_args()
-
     for filename in args.files:
         minify_source_file(args, filename)
 
