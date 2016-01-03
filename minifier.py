@@ -12,8 +12,13 @@ import os  # SEEK_END etc.
 # Ops: ops that may be spaced out in the code but we can trim the whitespace before and after
 # special ops are the same but for ops that may be mistaken for regex control characters so they are escaped
 # Spaced ops are operators that we need to append with one trailing space because of their syntax (e.g. keywords).
-OPS = ['+', '-', '*', '/', '+=', '-=', '*=', '/=', '=', '<', '>', '<=', '>=', ',', '(', ')', '{', '}', ';','else']
-SPECIAL_OPS = ['+', '*', '+=', '*=', '(', ')']
+OPS = [
+    '+', '-', '*', '/', '%', '++', '--',
+    '+=', '-=', '*=', '/=', '%=', '=', '==', '!=',
+    '&&', '||', '!', '&', '|', '^', '<<', '>>',
+    '<', '>', '<=', '>=', '<<=', '>>=', '&=', '|=', '^=', ',',
+    '(', ')', '{', '}', ';','else'
+]
 SPACED_OPS = ['else']
 
 
@@ -73,9 +78,7 @@ def minify_operator(op):
     """Returns a function applying a regex to strip away spaces on each side of an operator
     Makes a special escape for operators that could be mistaken for regex control characters."""
     to_compile = " *"
-    if op in SPECIAL_OPS:
-        to_compile += "\\"
-    to_compile += op
+    to_compile += re.escape(op)
     to_compile += " *"
     regex = re.compile(to_compile)
     repl = op
