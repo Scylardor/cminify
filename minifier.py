@@ -1,5 +1,5 @@
 #!/usr/bin/env python2.7
-#     C Minify Copyright (C) 2014 Alexandre Baron
+#     C Minify Copyright (C) 2015 Alexandre Baron
 #     This program comes with ABSOLUTELY NO WARRANTY; for details read LICENSE.
 #     This is free software, and you are welcome to redistribute it
 #     under certain conditions; read LICENSE for details.
