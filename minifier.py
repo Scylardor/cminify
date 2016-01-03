@@ -77,9 +77,7 @@ def remove_inline_comments(lines):
 def minify_operator(op):
     """Returns a function applying a regex to strip away spaces on each side of an operator
     Makes a special escape for operators that could be mistaken for regex control characters."""
-    to_compile = " *"
-    to_compile += re.escape(op)
-    to_compile += " *"
+    to_compile = " *{} *".format(re.escape(op))
     regex = re.compile(to_compile)
     repl = op
     if op in SPACED_OPS:
