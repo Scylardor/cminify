@@ -138,13 +138,16 @@ def minify_source_file(args, filename):
         if args.names is True:
             print("File {}:".format(source_file))
         lines = f.readlines()
-        if args.keep_newline is False:
-            # Keep preprocessor lines (starting with #)
-            lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
+
         lines = map(lambda x: x.replace('\t', ' '), lines)
         # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
         # and specify only spaces so it doesn't strip newlines
         lines = map(lambda x: x.strip(' '), lines)
+
+        if args.keep_newline is False:
+            # Keep preprocessor lines (starting with #)
+            lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
+
         # for each operator: remove space on each side of the op, on every line.
         # Escape ops that could be regex control characters.
         for op in OPS:
