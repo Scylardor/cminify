@@ -134,6 +134,7 @@ def fix_unary_operators(lines):
 
 
 def minify_source_file(args, filename):
+    minified_file = ""
     with open(filename) as f:
         if args.names is True:
             print("File {}:".format(source_file))
@@ -166,9 +167,17 @@ def minify_source_file(args, filename):
         # There is no syntactic requirement of an operator being spaced from a '{' in C so
         # if we added unnecessary space when processing spaced ops, we can fix it here
         minified = fix_spaced_ops(minified)
-        print(minified)
+        minified_file += minified
         if args.stats is True:
             show_stats(f, minified)
+    # Add a newline before every hash if neccessary
+    for i, c in enumerate(minified_file):
+        if i >= 1:
+            if c == '#':
+                if minified_file[i-1] != '\n':
+                    minified_file = minified_file[:i] + '\n' + minified_file[i:]
+
+    print(minified_file)
 
 
 def get_args():
