@@ -163,7 +163,7 @@ def minify_source(orig_source, args=None):
     # - reinsert newlines on preprocessor directives
     # so they stay on their own line even minified
     lines = clear_whitespace_first_pass(lines)
-    if args is not None and args.keep_newlines is False:
+    if args is None or args.keep_newlines is False:
         lines = reinsert_preprocessor_newlines(lines)
 
     # for each operator: remove space on each side of the op, on every line.
