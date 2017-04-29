@@ -21,6 +21,7 @@ OPS = [
 ]
 SPACED_OPS = ['else']
 UNARY_OPS= ["+", "-", "&", "!", "*"]
+PREPROCESSOR_TOKEN = '#'
 
 def remove_everything_between(subs1, subs2, line):
     regex = re.compile(subs1 + r'.*' + subs2)
@@ -85,17 +86,6 @@ def minify_operator(op):
     return lambda string: regex.sub(repl, string)
 
 
-def show_stats(orig_text, minified_text):
-    # After "f.readlines", the file pointer is at file's end so tell() will return current file size.
-    orig_size = len(orig_text)
-    mini_size = len(minified_text)
-    delta = orig_size - mini_size
-    print(
-        "Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
-        .format(orig_size, mini_size, delta, (float(delta) / float(orig_size)) * 100.0)
-    )
-
-
 def fix_spaced_ops(minified_txt):
     """This will walk the spaced ops list and search the text for all "[OP] {" sequences occurrences
     and replace them by "[OP]{" since there is no operator in the C syntax for which the spacing
@@ -126,28 +116,63 @@ def fix_unary_operators(lines):
     repl = r'\1' + " " + r'\2'
     # Process each preprocessor line and modify it inplace as we need to keep order
     for (idx, line) in enumerate(lines):
-        if line.startswith('#'):
+        if is_preprocessor_directive(line):
             for op in UNARY_OPS:
                 line = re.sub(pattern, repl, line)
             lines[idx] = line
     return lines
 
 
-def minify_source_file(args, orig_source):
-    lines = orig_source.split('\n')
-    intermediate_string = ""
-
+def clear_whitespace_first_pass(lines):
+    """Given a list of lines, clears all leading/trailing whitespace"""
     lines = map(lambda x: x.replace('\t', ' '), lines)
-    # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
-    # and specify only spaces so it doesn't strip newlines
+    # specify only spaces so it doesn't strip newlines
     lines = map(lambda x: x.strip(' '), lines)
+    return lines
+
+
+def reinsert_preprocessor_newlines(lines):
+    """Preprocessor directives should stay on their own line even minified
+    So bring back a '\n' on lines beginning with '#' AND on lines before them"""
+    for idx, line in enumerate(lines):
+        if is_preprocessor_directive(line) or (
+         idx != len(lines)-1 and is_preprocessor_directive(lines[idx+1])):
+            lines[idx] = lines[idx] + '\n'
+    return lines
+
+
+def is_preprocessor_directive(line):
+    return line.startswith(PREPROCESSOR_TOKEN)
+
+
+def minify_source(orig_source, args=None):
+    """
+    The main function where the minification happens.
+    Main steps:
+    - split input into lines
+    - clear leading/trailing whitespace and add newlines back again to
+    preprocessor directives lines
+    - minify operators that can be used without spaces
+    - fix unary operators that we could have taken for binary operators (e.g. -)
+    - re-concatening all lines and final fixes to possible over-spacing
+    """
+    lines = orig_source.split('\n')
+
+    # Things to do BEFORE processing spaced ops:
+    # - erase leading and trailing whitespace
+    # - reinsert newlines on preprocessor directives
+    # so they stay on their own line even minified
+    lines = clear_whitespace_first_pass(lines)
+    if args is not None and args.keep_newlines is False:
+        lines = reinsert_preprocessor_newlines(lines)
+
     # for each operator: remove space on each side of the op, on every line.
     # Escape ops that could be regex control characters.
     for op in OPS:
         lines = map(minify_operator(op), lines)
-    if args.keep_inline is False:
+    if args is not None and args.keep_inline is False:
         lines = remove_inline_comments(lines)
-    if args.keep_multiline is False:
+    if args is not None and args.keep_multiline is False:
         lines = remove_multiline_comments(lines)
     # Finally convert all remaining multispaces to a single space
     multi_spaces = re.compile(r'[  ]+ *')
@@ -156,7 +181,8 @@ def minify_source_file(args, orig_source):
     # e.g. "#define ABC -1" becomes "#define ABC-1", so we can fix it here
     lines = fix_unary_operators(lines)
 
-    if args.keep_newlines is True:
+    minified = ""
+    if args is not None and args.keep_newlines is True:
         minified = args.newline.join(lines)
     else:
         minified = ''.join(lines)
@@ -164,21 +190,8 @@ def minify_source_file(args, orig_source):
     # There is no syntactic requirement of an operator being spaced from a '{' in C so
     # if we added unnecessary space when processing spaced ops, we can fix it here
     minified = fix_spaced_ops(minified)
-    intermediate_string += minified
 
-    # Add a newline before every hash if neccessary
-    for i, c in enumerate(intermediate_string):
-        if i >= 1:
-            if c == '#':
-                if intermediate_string[i-1] != '\n':
-                    intermediate_string = intermediate_string[:i] + '\n' + intermediate_string[i:]
-    # Delete empty lines inserted by previous loop
-    for i, c in enumerate(intermediate_string):
-        if i >= 1:
-            if intermediate_string[i] == '\n' and intermediate_string[i+1] == '\n':
-                final_string = intermediate_string[:i] + intermediate_string[i+1:]
-
-    return final_string
+    return minified
 
 
 def get_args():
@@ -205,7 +218,6 @@ def get_args():
                         action='store_true')
     args = parser.parse_args()
     return args
-
 
 
 def get_minification_delta(source_text, minified_text):
@@ -238,7 +250,7 @@ def process_files(args):
     for filename in args.files:
         orig_source_code = ""
         newline = None  # would use \n by default
-        # No matter the original newline character used (LF or CRLF), python
+        # No matter the original newline character used (LF, CRLF...), python
         # will always use \n in code. But when outputting the minified
         # source, we need to know which newline character was used, and
         # specifying 'U' tells open to store it in f.newlines
@@ -255,7 +267,7 @@ def process_files(args):
             continue
 
         args.newline = newline  # storing the wanted newline character
-        minified_source_code = minify_source_file(args, orig_source_code)
+        minified_source_code = minify_source(orig_source_code, args)
 
         print_additional_info(
             orig_source_code, minified_source_code, filename, args
