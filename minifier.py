@@ -197,10 +197,6 @@ def minify_source(orig_source, args=None):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs='+', help="Input files")
-    parser.add_argument("-c", "--crlf",
-                        help="Use CRLF as newline control character (\r\n)",
-                        default='\n',
-                        action='store_const', const='\r\n')
     parser.add_argument("-n", "--names",
                         help="Show name of processed files",
                         action='store_true')
