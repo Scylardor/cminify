@@ -134,7 +134,6 @@ def clear_whitespace_first_pass(lines):
 def reinsert_preprocessor_newlines(lines):
     """Preprocessor directives should stay on their own line even minified
     So bring back a '\n' on lines beginning with '#' AND on lines before them"""
-    print(type(lines))
     for idx, line in enumerate(lines):
         if is_preprocessor_directive(line) or (
          idx != len(lines)-1 and is_preprocessor_directive(lines[idx+1])):
