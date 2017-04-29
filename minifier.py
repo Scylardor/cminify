@@ -156,6 +156,11 @@ def minify_source(orig_source, args=None):
     - fix unary operators that we could have taken for binary operators (e.g. -)
     - re-concatening all lines and final fixes to possible over-spacing
     """
+    # Unpacking argument parameters, dealing with the case there are no args
+    keep_newlines = getattr(args, 'keep_newlines', False)
+    keep_multiline_comments = getattr(args, 'keep_multiline', False)
+    keep_inline_comments = getattr(args, 'keep_inline', False)
+
     lines = orig_source.split('\n')
 
     # Things to do BEFORE processing spaced ops:
@@ -163,16 +168,16 @@ def minify_source(orig_source, args=None):
     # - reinsert newlines on preprocessor directives
     # so they stay on their own line even minified
     lines = clear_whitespace_first_pass(lines)
-    if args is None or args.keep_newlines is False:
+    if keep_newlines is False:
         lines = reinsert_preprocessor_newlines(lines)
 
     # for each operator: remove space on each side of the op, on every line.
     # Escape ops that could be regex control characters.
     for op in OPS:
         lines = map(minify_operator(op), lines)
-    if args is not None and args.keep_inline is False:
+    if keep_inline_comments is False:
         lines = remove_inline_comments(lines)
-    if args is not None and args.keep_multiline is False:
+    if keep_multiline_comments is False:
         lines = remove_multiline_comments(lines)
     # Finally convert all remaining multispaces to a single space
     multi_spaces = re.compile(r'[  ]+ *')
@@ -182,7 +187,7 @@ def minify_source(orig_source, args=None):
     lines = fix_unary_operators(lines)
 
     minified = ""
-    if args is not None and args.keep_newlines is True:
+    if keep_newlines is True:
         minified = args.newline.join(lines)
     else:
         minified = ''.join(lines)
