@@ -85,9 +85,9 @@ def minify_operator(op):
     return lambda string: regex.sub(repl, string)
 
 
-def show_stats(source_file, minified_text):
+def show_stats(orig_text, minified_text):
     # After "f.readlines", the file pointer is at file's end so tell() will return current file size.
-    orig_size = source_file.tell()
+    orig_size = len(orig_text)
     mini_size = len(minified_text)
     delta = orig_size - mini_size
     print(
@@ -133,43 +133,38 @@ def fix_unary_operators(lines):
     return lines
 
 
-def minify_source_file(args, filename):
+def minify_source_file(args, orig_source):
+    lines = orig_source.split('\n')
     intermediate_string = ""
-    with open(filename) as f:
-        if args.names is True:
-            print("File {}:".format(source_file))
-        lines = f.readlines()
 
-        lines = map(lambda x: x.replace('\t', ' '), lines)
-        # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
-        # and specify only spaces so it doesn't strip newlines
-        lines = map(lambda x: x.strip(' '), lines)
-
-        if args.keep_newline is False:
-            # Keep preprocessor lines (starting with #)
-            lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
-
-        # for each operator: remove space on each side of the op, on every line.
-        # Escape ops that could be regex control characters.
-        for op in OPS:
-            lines = map(minify_operator(op), lines)
-        if args.keep_inline is False:
-            lines = remove_inline_comments(lines)
-        if args.keep_multiline is False:
-            lines = remove_multiline_comments(lines)
-        # Finally convert all remaining multispaces to a single space
-        multi_spaces = re.compile(r'[  ]+ *')
-        lines = map(lambda string: multi_spaces.sub(' ', string), lines)
-        # Ops processing can have eliminated necessary space when using unary ops
-        # e.g. "#define ABC -1" becomes "#define ABC-1", so we can fix it here
-        lines = fix_unary_operators(lines)
-        minified = ''.join(lines)
-        # There is no syntactic requirement of an operator being spaced from a '{' in C so
-        # if we added unnecessary space when processing spaced ops, we can fix it here
-        minified = fix_spaced_ops(minified)
-        intermediate_string += minified
-        if args.stats is True:
-            show_stats(f, minified)
+    lines = map(lambda x: x.replace('\t', ' '), lines)
+    # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
+    # and specify only spaces so it doesn't strip newlines
+    lines = map(lambda x: x.strip(' '), lines)
+    if args.keep_newline is False:
+        # Keep preprocessor lines (starting with #)
+        lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
+    # for each operator: remove space on each side of the op, on every line.
+    # Escape ops that could be regex control characters.
+    for op in OPS:
+        lines = map(minify_operator(op), lines)
+    if args.keep_inline is False:
+        lines = remove_inline_comments(lines)
+    if args.keep_multiline is False:
+        lines = remove_multiline_comments(lines)
+    # Finally convert all remaining multispaces to a single space
+    multi_spaces = re.compile(r'[  ]+ *')
+    lines = map(lambda string: multi_spaces.sub(' ', string), lines)
+    # Ops processing can have eliminated necessary space when using unary ops
+    # e.g. "#define ABC -1" becomes "#define ABC-1", so we can fix it here
+    lines = fix_unary_operators(lines)
+    minified = ''.join(lines)
+    # There is no syntactic requirement of an operator being spaced from a '{' in C so
+    # if we added unnecessary space when processing spaced ops, we can fix it here
+    minified = fix_spaced_ops(minified)
+    intermediate_string += minified
+    if args.stats is True:
+        show_stats(orig_source, minified)
     # Add a newline before every hash if neccessary
     for i, c in enumerate(intermediate_string):
         if i >= 1:
@@ -182,7 +177,7 @@ def minify_source_file(args, filename):
             if intermediate_string[i] == '\n' and intermediate_string[i+1] == '\n':
                 final_string = intermediate_string[:i] + intermediate_string[i+1:]
 
-    print(final_string)
+    return final_string
 
 
 def get_args():
@@ -211,10 +206,54 @@ def get_args():
     return args
 
 
+
+def get_minification_delta(source_file, minified_text):
+    """Computes how much the code size has been reduced after minification"""
+    # TODO : this function is completely broken at the moment
+    orig_size = source_file.tell()
+    mini_size = len(minified_source)
+    delta = orig_size - mini_size
+    return delta
+
+
+def print_additional_info(orig_source, minified_source, filename, args):
+    """Prints out additional info on the minification based on given args"""
+    if args.names is True:
+        print("{}:".format(filename))
+
+    if args.stats is True:
+        orig_size = len(orig_source)
+        mini_size = len(minified_source)
+        delta = get_minification_delta(orig_source_code, minified_source_code)
+        if orig_size != 0:
+            print(
+                "Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
+                .format(orig_size, mini_size, delta, (float(delta) / float(orig_size)) * 100.0)
+            )
+
+
+def process_files(args):
+    """Minifies a list of code files and displays additional info based on
+    given args"""
+    for filename in args.files:
+        orig_source_code = ""
+        with open(filename) as f:
+            orig_source_code = f.read()
+
+        minified_source_code = minify_source_file(args, orig_source_code)
+
+        print_additional_info(
+            orig_source_code, minified_source_code, filename, args
+        )
+
+        # Finally output the minified code
+        print(minified_source_code)
+
+
 def main():
     args = get_args()
-    for filename in args.files:
-        minify_source_file(args, filename)
+    process_files(args)
+
 
 if __name__ == "__main__":
     main()
