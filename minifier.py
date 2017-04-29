@@ -141,9 +141,6 @@ def minify_source_file(args, orig_source):
     # erase leading and trailing whitespace but do it BEFORE processing spaced ops!
     # and specify only spaces so it doesn't strip newlines
     lines = map(lambda x: x.strip(' '), lines)
-    if args.keep_newline is False:
-        # Keep preprocessor lines (starting with #)
-        lines = map(lambda x: x.replace(args.crlf, '') if not x.startswith('#') else x, lines)
     # for each operator: remove space on each side of the op, on every line.
     # Escape ops that could be regex control characters.
     for op in OPS:
@@ -158,7 +155,12 @@ def minify_source_file(args, orig_source):
     # Ops processing can have eliminated necessary space when using unary ops
     # e.g. "#define ABC -1" becomes "#define ABC-1", so we can fix it here
     lines = fix_unary_operators(lines)
-    minified = ''.join(lines)
+
+    if args.keep_newlines is True:
+        minified = args.newline.join(lines)
+    else:
+        minified = ''.join(lines)
+
     # There is no syntactic requirement of an operator being spaced from a '{' in C so
     # if we added unnecessary space when processing spaced ops, we can fix it here
     minified = fix_spaced_ops(minified)
@@ -199,7 +201,7 @@ def get_args():
     parser.add_argument("-i", "--keep-inline",
                         help="Do not strip inline comments (// ...)",
                         action='store_true')
-    parser.add_argument("-w", "--keep-newline",
+    parser.add_argument("-w", "--keep-newlines",
                         help="Keep newline control characters",
                         action='store_true')
     args = parser.parse_args()
@@ -237,9 +239,24 @@ def process_files(args):
     given args"""
     for filename in args.files:
         orig_source_code = ""
-        with open(filename) as f:
+        newline = None  # would use \n by default
+        # No matter the original newline character used (LF or CRLF), python
+        # will always use \n in code. But when outputting the minified
+        # source, we need to know which newline character was used, and
+        # specifying 'U' tells open to store it in f.newlines
+        # cf. https://docs.python.org/2/library/functions.html#open
+        with open(filename, 'U') as f:
             orig_source_code = f.read()
+            newline = f.newlines
 
+        if type(newline) is tuple:
+            print(
+                "Mixed newlines are unsupported, skipping file {}."
+                .format(filename)
+            )
+            continue
+
+        args.newline = newline  # storing the wanted newline character
         minified_source_code = minify_source_file(args, orig_source_code)
 
         print_additional_info(
