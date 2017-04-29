@@ -165,8 +165,7 @@ def minify_source_file(args, orig_source):
     # if we added unnecessary space when processing spaced ops, we can fix it here
     minified = fix_spaced_ops(minified)
     intermediate_string += minified
-    if args.stats is True:
-        show_stats(orig_source, minified)
+
     # Add a newline before every hash if neccessary
     for i, c in enumerate(intermediate_string):
         if i >= 1:
@@ -209,11 +208,10 @@ def get_args():
 
 
 
-def get_minification_delta(source_file, minified_text):
+def get_minification_delta(source_text, minified_text):
     """Computes how much the code size has been reduced after minification"""
-    # TODO : this function is completely broken at the moment
-    orig_size = source_file.tell()
-    mini_size = len(minified_source)
+    orig_size = len(source_text)
+    mini_size = len(minified_text)
     delta = orig_size - mini_size
     return delta
 
@@ -226,7 +224,7 @@ def print_additional_info(orig_source, minified_source, filename, args):
     if args.stats is True:
         orig_size = len(orig_source)
         mini_size = len(minified_source)
-        delta = get_minification_delta(orig_source_code, minified_source_code)
+        delta = get_minification_delta(orig_source, minified_source)
         if orig_size != 0:
             print(
                 "Original: {0} characters, Minified: {1} characters, {2} removed ({3:.1f}%)"
