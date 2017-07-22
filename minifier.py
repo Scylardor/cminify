@@ -8,6 +8,7 @@ import argparse
 import sys
 import re
 import os  # SEEK_END etc.
+import fileinput # read from STDIN
 
 # Ops: ops that may be spaced out in the code but we can trim the whitespace before and after
 # Spaced ops are operators that we need to append with one trailing space because of their syntax (e.g. keywords).
@@ -253,12 +254,19 @@ def process_files(args):
         newline = None  # would use \n by default
         # No matter the original newline character used (LF, CRLF...), python
         # will always use \n in code. But when outputting the minified
-        # source, we need to know which newline character was used, and
+        # source, we need to know which newline character was used
+
+        # A dash instructs the program to read from stdin
+        if filename == "-":
+            for line in fileinput.input():
+                orig_source_code += line
+
         # specifying 'U' tells open to store it in f.newlines
         # cf. https://docs.python.org/2/library/functions.html#open
-        with open(filename, 'U') as f:
-            orig_source_code = f.read()
-            newline = f.newlines
+        else:
+            with open(filename, 'U') as f:
+                orig_source_code = f.read()
+                newline = f.newlines
 
         if type(newline) is tuple:
             print(
