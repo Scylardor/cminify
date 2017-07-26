@@ -137,7 +137,8 @@ def reinsert_preprocessor_newlines(lines):
     for idx, line in enumerate(lines):
         if is_preprocessor_directive(line) or (
          idx != len(lines)-1 and is_preprocessor_directive(lines[idx+1])):
-            lines[idx] = lines[idx] + '\n'
+            if not lines[idx] == '':
+                lines[idx] = lines[idx] + '\n'
     return lines
 
 
