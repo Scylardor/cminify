@@ -260,11 +260,8 @@ def process_files(args):
         if filename == "-":
             for line in fileinput.input():
                 orig_source_code += line
-
-        # specifying 'U' tells open to store it in f.newlines
-        # cf. https://docs.python.org/2/library/functions.html#open
         else:
-            with open(filename, 'U') as f:
+            with open(filename, 'r') as f:
                 orig_source_code = f.read()
                 newline = f.newlines
 
