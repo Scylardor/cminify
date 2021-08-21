@@ -1,5 +1,7 @@
 import unittest
+
 from minifier import minify_source  # this is what we test
+
 
 class DummyArgs:
     """A "fake" args class that allows us to define ad hoc parameters"""
@@ -121,6 +123,24 @@ return 0;
         expected = "int main(){int a=42;//The only answerint b=-1;//Not the only answer//Below: an empty comment//return 0;}"
         self.assertEqual(minified, expected)
 
+    def test_preprocessor_after_non_preprocessor(self):
+        inputTxt = """int before();
+
+
+
+#include<vector>
+
+#include<array>
+
+
+int after();
+"""
+        expected = """int before();
+#include<vector>
+#include<array>
+int after();"""
+        minified = minify_source(inputTxt, None)
+        self.assertEqual(minified, expected)
 
 if __name__ == '__main__':
     unittest.main()

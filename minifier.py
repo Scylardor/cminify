@@ -138,9 +138,15 @@ def reinsert_preprocessor_newlines(lines):
     for idx, line in enumerate(lines):
         if is_preprocessor_directive(line) or (
          idx != len(lines)-1 and is_preprocessor_directive(lines[idx+1])):
-            if not lines[idx] == '':
-                lines[idx] = lines[idx] + '\n'
+            lines[idx] = lines[idx] + '\n'
     return lines
+
+
+def fix_duplicate_newlines(file):
+    """Preprocessor directives seperated by newlines can end up with blank lines between them after
+    after being joined, search for any occurances of this and replace with a single new line"""
+    regex = re.compile('[\n]{2,}')
+    return regex.sub('\n', file)
 
 
 def is_preprocessor_directive(line):
@@ -192,7 +198,7 @@ def minify_source(orig_source, args=None):
     if keep_newlines is True:
         minified = args.newline.join(lines)
     else:
-        minified = ''.join(lines)
+        minified = fix_duplicate_newlines(''.join(lines))
 
     # There is no syntactic requirement of an operator being spaced from a '{' in C so
     # if we added unnecessary space when processing spaced ops, we can fix it here
