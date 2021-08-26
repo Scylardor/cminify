@@ -1,5 +1,7 @@
 import unittest
+
 from minifier import minify_source  # this is what we test
+
 
 class DummyArgs:
     """A "fake" args class that allows us to define ad hoc parameters"""
@@ -118,9 +120,48 @@ return 0;
         # This is "expected" but kind of bogus since the code now won't compile.
         # Maybe it would be cool to fix it someday, but anyway, it's kinda weird
         # to keep inline comments without keeping newlines.
-        expected = "int main(){int a=42;//The only answerint b=-1;//Not the only answer//Below: an empty comment//return 0;}"
+        expected = "int main(){int a=42;//The only answerint b=-1;//Not the only answer//Below:an empty comment//return 0;}"
         self.assertEqual(minified, expected)
 
+    def test_preprocessor_after_non_preprocessor(self):
+        inputTxt = """int before();
+
+
+
+#include<vector>
+
+#include<array>
+
+
+int after();
+"""
+        expected = """int before();
+#include<vector>
+#include<array>
+int after();"""
+        minified = minify_source(inputTxt, None)
+        self.assertEqual(minified, expected)
+
+    def test_colon_operators(self):
+        inputTxt = """
+class Test : public TestBase {
+  public:
+    Test(IterableType const& iterable);
+
+  private:
+    IterableType iterable_;
+};
+
+Test::Test(IterableType const& iterable)
+  : iterable_(iterable) {
+  for(auto const& i : iterable_) {
+    i ? TestBase::Call() : TestBase::OtherCall();
+  }
+}
+"""
+        expected = "class Test:public TestBase{public:Test(IterableType const&iterable);private:IterableType iterable_;};Test::Test(IterableType const&iterable):iterable_(iterable){for(auto const&i:iterable_){i?TestBase::Call():TestBase::OtherCall();}}"
+        minified = minify_source(inputTxt, None)
+        self.assertEqual(minified, expected)
 
 if __name__ == '__main__':
     unittest.main()
